@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <map>
 
 using namespace sf;
@@ -79,10 +80,12 @@ private:
     map<string, pair<string, string>> users;
     map<string, int> highScores;
     map<string, int> userCoins;
-    map<string, vector<int>> purchasedSkins; 
+    map<string, vector<int>> purchasedSkins;
     const string PURCHASED_SKINS_FILE = "C:\\Users\\User\\Desktop\\SFML\\Users\\purchased_skins.txt";
     const string USERS_FILE = "C:\\Users\\User\\Desktop\\SFML\\Users\\users.txt";
     const string SCORES_FILE = "C:\\Users\\User\\Desktop\\SFML\\Users\\user_scores.txt";
+    int infiniteModeHighScore = 0;
+    int timeModeHighScore = 0;
     string currentUser;
 
 public:
@@ -92,7 +95,10 @@ public:
             savePurchasedSkins();
         }
     }
-
+    int getUserInfiniteModeHighScore() const {
+        if (!isLoggedIn()) return 0;
+        return infiniteModeHighScore;
+    }
     bool hasPurchasedSkin(const string& login, int skinIndex) {
         auto it = purchasedSkins.find(login);
         if (it != purchasedSkins.end()) {
@@ -201,9 +207,12 @@ public:
             while (getline(file, line)) {
                 istringstream iss(line);
                 string username;
-                int score;
-                if (iss >> username >> score) {
-                    highScores[username] = score;
+                int infiniteScore, timeScore;
+                if (iss >> username >> infiniteScore >> timeScore) {
+                    if (username == currentUser) {
+                        infiniteModeHighScore = infiniteScore;
+                        timeModeHighScore = timeScore;
+                    }
                 }
             }
             file.close();
@@ -213,9 +222,7 @@ public:
     void saveUserScores() {
         ofstream file(SCORES_FILE);
         if (file.is_open()) {
-            for (const auto& entry : highScores) {
-                file << entry.first << " " << entry.second << "\n";
-            }
+            file << currentUser << " " << infiniteModeHighScore << " " << timeModeHighScore << "\n";
             file.close();
         }
     }
@@ -262,14 +269,27 @@ public:
         auto it = highScores.find(currentUser);
         return (it != highScores.end()) ? it->second : 0;
     }
-
-    void updateUserHighScore(int score) {
+    int getUserTimeModeHighScore() const {
+        if (!isLoggedIn()) return 0;
+        return timeModeHighScore;
+    }
+    void updateUserHighScore(int score, bool isTimeMode) {
         if (!isLoggedIn()) return;
 
-        int currentHigh = getUserHighScore();
-        if (score > currentHigh) {
-            highScores[currentUser] = score;
-            saveUserScores();
+        if (isTimeMode) {
+            cout << "Current time mode high: " << timeModeHighScore
+                << ", new score: " << score << endl;
+
+            if (score > timeModeHighScore) {
+                timeModeHighScore = score;
+                saveUserScores();
+            }
+        }
+        else {
+            if (score > infiniteModeHighScore) {
+                infiniteModeHighScore = score;
+                saveUserScores();
+            }
         }
     }
 };
@@ -353,9 +373,9 @@ public:
     }
 
     int calculateCoins() const {
-        if (sprite.getTexture() == &asteroidGreenTexture) return 1;   
-        if (sprite.getTexture() == &asteroidBlueTexture) return 2;    
-        if (sprite.getTexture() == &asteroidRedTexture) return 3;     
+        if (sprite.getTexture() == &asteroidGreenTexture) return 1;
+        if (sprite.getTexture() == &asteroidBlueTexture) return 2;
+        if (sprite.getTexture() == &asteroidRedTexture) return 3;
         return 0;
     }
     Sprite sprite;
@@ -617,7 +637,7 @@ void showLeaderboard(RenderWindow& window, Font& font) {
 }
 
 bool showGameOverWithName(RenderWindow& window, Font& font, UserManager& userManager, int score, bool isTimeMode) {
-    userManager.updateUserHighScore(score);
+    userManager.updateUserHighScore(score, isTimeMode);
     userManager.saveUserCoins();
     updateGlobalHighscores(userManager, score, isTimeMode);
 
@@ -632,12 +652,18 @@ bool showGameOverWithName(RenderWindow& window, Font& font, UserManager& userMan
         window.getSize().y / 2 - 150);
 
 
-    int highScore = userManager.getUserHighScore();
-    Text highScoreText("Your best: " + to_string(highScore), font, 30);
+    int highScore = isTimeMode ? userManager.getUserTimeModeHighScore() : userManager.getUserHighScore();
+    Text highScoreText("Best (Infinite): " + to_string(userManager.getUserInfiniteModeHighScore()) +
+        "\nBest (Time): " + to_string(userManager.getUserTimeModeHighScore()), font, 50);
     highScoreText.setFillColor(Color::Yellow);
     highScoreText.setPosition(window.getSize().x / 2 - highScoreText.getGlobalBounds().width / 2,
-        window.getSize().y / 2 + 20);
+        gameOver.getPosition().y + gameOver.getGlobalBounds().height + 30);
 
+
+    Text coinsText("Coins: " + to_string(userManager.getUserCoins()), font, 20);
+    coinsText.setFillColor(Color::Yellow);
+    coinsText.setPosition(20, window.getSize().y + 200);
+    coinsText.setPosition(20, window.getSize().x + 200);
     Text options("Press R to Retry or M for Menu", font, 30);
     options.setFillColor(Color::White);
     options.setPosition(window.getSize().x / 2 - options.getGlobalBounds().width / 2,
@@ -866,7 +892,7 @@ void showSettings(RenderWindow& window, Font& font, Music& music, Sound& shootSo
                     vol = clamp(vol, 0, 100);
                     musicVolume = vol;
                     music.setVolume(musicVolume);
-                    shopMusic.setVolume(musicVolume); 
+                    shopMusic.setVolume(musicVolume);
                     musicHandle.setPosition(musicSliderBg.getPosition().x + musicVolume / 100.f * musicSliderBg.getSize().x, 190);
                 }
 
@@ -1016,8 +1042,8 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
     };
 
     vector<ShipStats> shipsStats = {
-        {"Default Fighter",  20, 0.25f, 300.f, 0, true},
-        {"Swift Scout",     20, 0.15f, 350.f, 250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 2)},
+        {"Default Fighter",  20, 0.28f, 300.f, 0, true},
+        {"Swift Scout",     20, 0.23f, 350.f, 250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 2)},
         {"Heavy Cruiser",   30, 0.40f, 300.f, 500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 3)},
         {"Stealth Ship",    25, 0.30f, 280.f, 750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 4)},
         {"Assault Ship",    22, 0.20f, 320.f, 1000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 5)},
@@ -1134,7 +1160,10 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
         if (shipIndex >= 0 && shipIndex < 10) {
             shipName.setString(shipsStats[shipIndex].name);
             shipDamage.setString("Damage: " + to_string(shipsStats[shipIndex].damage));
-            shipFireRate.setString("Fire Rate: " + to_string(shipsStats[shipIndex].fireRate) + " sec");
+            ostringstream stream;
+            stream << std::fixed << setprecision(2);
+            stream << "Fire Rate: " << shipsStats[shipIndex].fireRate << " sec";
+            shipFireRate.setString(stream.str());
             shipSpeed.setString("Speed: " + to_string((int)shipsStats[shipIndex].speed) + " units");
 
             string description = "A well-balanced ship with\ngood overall performance.";
@@ -1157,13 +1186,13 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
                 buyButtonText.setString("BUY");
                 priceText.setString(to_string(shipsStats[shipIndex].price) + " coins");
                 buyButton.setFillColor(Color(70, 70, 70, 200));
-                buyButton.setOutlineColor(Color::Yellow); 
+                buyButton.setOutlineColor(Color::Yellow);
             }
             else {
                 buyButtonText.setString("BUY");
                 priceText.setString(to_string(shipsStats[shipIndex].price) + " coins");
                 buyButton.setFillColor(Color(30, 30, 30, 200));
-                buyButton.setOutlineColor(Color::Transparent); 
+                buyButton.setOutlineColor(Color::Transparent);
             }
 
             priceText.setPosition(buyButton.getPosition().x + (buyButton.getSize().x - priceText.getGlobalBounds().width) / 2,
@@ -1226,7 +1255,7 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
                         updateShipInfo(selectedShipSkin);
                         saveSelectedSkin();
 
-                        
+
                         for (int i = 0; i < 10; i++) {
                             skinBgs[i].setOutlineColor(selectedShipSkin == i + 1 ? Color::Yellow : Color::White);
                             skinTexts[i].setFillColor(selectedShipSkin == i + 1 ? Color::Yellow : Color::White);
@@ -1263,7 +1292,7 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
 
         if (buyButton.getGlobalBounds().contains(mousePos) && !alreadyOwned) {
             if (canAfford) {
-                buyButton.setFillColor(Color(100, 100, 100, 200)); 
+                buyButton.setFillColor(Color(100, 100, 100, 200));
                 buyButton.setOutlineColor(Color::Yellow);
                 buyButtonText.setFillColor(Color::Yellow);
             }
@@ -1667,39 +1696,39 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
         case 4: // Stealth Ship
             moveSpeed = 280.f;
             baseShootCooldown = 0.30f;
-            bulletDamageModifier = 1.25f; 
+            bulletDamageModifier = 1.25f;
             break;
         case 5: // Assault Ship
             moveSpeed = 320.f;
             baseShootCooldown = 0.20f;
-            bulletDamageModifier = 1.1f; 
+            bulletDamageModifier = 1.1f;
             break;
         case 6: // Guardian
             moveSpeed = 310.f;
             baseShootCooldown = 0.22f;
-            bulletDamageModifier = 1.1f; 
+            bulletDamageModifier = 1.1f;
             break;
         case 7: // Tactical Ship
             moveSpeed = 270.f;
             baseShootCooldown = 0.35f;
-            bulletDamageModifier = 1.35f; 
+            bulletDamageModifier = 1.35f;
             break;
         case 8: // Interceptor
             moveSpeed = 400.f;
             baseShootCooldown = 0.2f;
-            bulletDamageModifier = 1; 
+            bulletDamageModifier = 1;
             break;
         case 9: // Battle Frigate
             moveSpeed = 230.f;
             baseShootCooldown = 0.50f;
-            bulletDamageModifier = 1.75f; 
+            bulletDamageModifier = 1.75f;
             break;
         case 10: // Dreadnought
             moveSpeed = 200.f;
             baseShootCooldown = 0.60f;
-            bulletDamageModifier = 2; 
+            bulletDamageModifier = 2;
             break;
-        default: 
+        default:
             moveSpeed = 300.f;
             baseShootCooldown = 0.25f;
             bulletDamageModifier = 1;
@@ -1720,7 +1749,7 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
             window.getSize().y / float(backgroundTexture.getSize().y)
         );
 
-        
+
         bool isPaused = false;
         bool shouldExitToMenu = false;
         Clock shootClock, gameClock, asteroidClock, bonusSpawnClock;
@@ -1850,19 +1879,19 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
             if (Mouse::isButtonPressed(Mouse::Left) && shootClock.getElapsedTime().asSeconds() >= currentShootCooldown) {
                 const Texture& bulletTex = (damageMultiplier > 1.0f) ? bulletTexture2 : bulletTexture;
 
-                if(doubleShotActive) {
+                if (doubleShotActive) {
                     Bullet bullet1(ship.getPosition().x, ship.getPosition().y, angle + 15, bulletTex);
                     Bullet bullet2(ship.getPosition().x, ship.getPosition().y, angle - 15, bulletTex);
-                    
+
                     bullet1.damage = static_cast<int>(bullet1.damage * bulletDamageModifier * damageMultiplier);
                     bullet2.damage = static_cast<int>(bullet2.damage * bulletDamageModifier * damageMultiplier);
                     bullets.push_back(bullet1);
                     bullets.push_back(bullet2);
                 }
                 else {
-                Bullet newBullet(ship.getPosition().x, ship.getPosition().y, angle, bulletTex);
-                newBullet.damage = static_cast<int>(newBullet.damage * bulletDamageModifier * damageMultiplier);
-                bullets.push_back(newBullet);
+                    Bullet newBullet(ship.getPosition().x, ship.getPosition().y, angle, bulletTex);
+                    newBullet.damage = static_cast<int>(newBullet.damage * bulletDamageModifier * damageMultiplier);
+                    bullets.push_back(newBullet);
                 }
                 shootSound.play();
                 shootClock.restart();
@@ -1959,11 +1988,11 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                         bullets[i].sprite.getPosition(),
                         bullets[i].sprite.getTexture()->getSize().x / 2.0f * 0.4f,
                         asteroids[j].getCenter(),
-                        asteroids[j].getRadius())) {       
+                        asteroids[j].getRadius())) {
                         asteroids[j].takeDamage(bullets[i].damage);
                         if (asteroids[j].health <= 0) {
                             score += asteroids[j].calculateScore();
-                            userManager.addUserCoins(asteroids[j].calculateCoins()); 
+                            userManager.addUserCoins(asteroids[j].calculateCoins());
                             coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
 
                             asteroidDestroySound.play();
@@ -1997,8 +2026,8 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                     if (shieldActive) {
                         shieldHits++;
                         score += asteroids[j].calculateScore();
-                        userManager.addUserCoins(asteroids[j].calculateCoins()); 
-                        coinsText.setString("Coins: " + to_string(userManager.getUserCoins())); 
+                        userManager.addUserCoins(asteroids[j].calculateCoins());
+                        coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
                         asteroidDestroySound.play();
 
                         if (shieldHits >= 2) {
@@ -2043,8 +2072,8 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                             pow(asteroids[j].getCenter().y - explosionCenter.y, 2));
                         if (distance < explosionRadius) {
                             score += asteroids[j].calculateScore();
-                            userManager.addUserCoins(asteroids[j].calculateCoins()); 
-                            coinsText.setString("Coins: " + to_string(userManager.getUserCoins())); 
+                            userManager.addUserCoins(asteroids[j].calculateCoins());
+                            coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
                             asteroidDestroySound.play();
                             scoreText.setString(to_string(score));
                             scoreText.setPosition(
@@ -2208,10 +2237,14 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
     float fieldX = centerX + 120;
 
     loginLabel.setPosition(centerX, 200);
-    passwordLabel.setPosition(centerX, 260);
-    nicknameLabel.setPosition(centerX, 320);
+
+    passwordLabel.setPosition(centerX - 70, 260);
+
+    nicknameLabel.setPosition(centerX - 70, 320);
     loginText.setPosition(fieldX + 20, 200);
-    passwordText.setPosition(fieldX + 20, 260);
+
+    passwordText.setPosition(fieldX + 20, 260); //ввод текста
+
     nicknameText.setPosition(fieldX + 20, 320);
     loginField.setPosition(fieldX + 20, 195);
     passwordField.setPosition(fieldX + 20, 255);
@@ -2466,7 +2499,7 @@ int main() {
     RenderWindow window(desktop, "Asteroids", Style::Fullscreen);
 
     Font font;
-    if (!font.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Fonts\\spacelight.ttf")) {
+    if (!font.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Fonts\\RuneScape-ENA.ttf")) {
         cerr << "Error: font file not found." << endl;
         return -1;
     }
@@ -2504,15 +2537,16 @@ int main() {
 
     Text userText("User: " + userManager.getCurrentNickname(), font, 20);
     userText.setFillColor(Color::White);
-    userText.setPosition(20, window.getSize().y - 40);
+    userText.setPosition(20, window.getSize().y - 50);
 
-    Text highScoreText("Best score: " + to_string(userManager.getUserHighScore()), font, 20);
+    Text highScoreText("Best (Infinite): " + to_string(userManager.getUserInfiniteModeHighScore()) +
+        "\nBest (Time): " + to_string(userManager.getUserTimeModeHighScore()), font, 20);
     highScoreText.setFillColor(Color::Yellow);
-    highScoreText.setPosition(20, window.getSize().y - 70);
+    highScoreText.setPosition(20, userText.getPosition().y - 50);
 
     Text coinsText("Coins: " + to_string(userManager.getUserCoins()), font, 20);
     coinsText.setFillColor(Color::Yellow);
-    coinsText.setPosition(20, window.getSize().y - 100);
+    coinsText.setPosition(20, highScoreText.getPosition().y - 20);
 
 
     vector<RectangleShape> menuButtons;
@@ -2585,7 +2619,8 @@ int main() {
             }
         }
 
-        highScoreText.setString("Best score: " + to_string(userManager.getUserHighScore()));
+        highScoreText.setString("Best (Infinite): " + to_string(userManager.getUserInfiniteModeHighScore()) +
+            "\nBest (Time): " + to_string(userManager.getUserTimeModeHighScore()));
         coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
         window.clear();
         window.draw(menuBg);
