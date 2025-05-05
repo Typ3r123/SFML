@@ -1,3 +1,2 @@
-Typ3r 6550 infinite
-123 350 infinite
-123 0 time
+Typ3r 5350 time
+Typ3r 700 infinite

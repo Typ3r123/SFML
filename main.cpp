@@ -15,6 +15,8 @@ Texture shipTexture1, shipTexture2, shipTexture3, shipTexture4, shipTexture5, sh
 Texture settingsBackgroundTexture, leaderboardBackgroundTexture, authBackgroundTexture, shopbackgroundTexture, lockTexture;
 Texture damageBuffTexture, fireRateBuffTexture, healthPackTexture, doubleShotBuffTexture, explosionPointTexture, shieldBuffTexture;
 Music shopMusic;
+SoundBuffer purchaseSoundBuffer;
+Sound purchaseSound;
 SoundBuffer errorSoundBuffer;
 Sound errorSound;
 float currentSpeedMultiplier = 1.0;
@@ -328,17 +330,17 @@ public:
         switch (type) {
         case 0:
             sprite.setTexture(asteroidGreenTexture);
-            health = 50;
+            health = 80;
             speed = 185.f;
             break;
         case 1:
             sprite.setTexture(asteroidBlueTexture);
-            health = 80;
+            health = 120;
             speed = 135.f;
             break;
         case 2:
             sprite.setTexture(asteroidRedTexture);
-            health = 100;
+            health = 160;
             speed = 100.f;
             break;
         }
@@ -1042,16 +1044,16 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
     };
 
     vector<ShipStats> shipsStats = {
-        {"Default Fighter",  20, 0.28f, 300.f, 0, true},
-        {"Swift Scout",     20, 0.23f, 350.f, 250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 2)},
-        {"Heavy Cruiser",   30, 0.40f, 300.f, 500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 3)},
-        {"Stealth Ship",    25, 0.30f, 280.f, 750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 4)},
-        {"Assault Ship",    22, 0.20f, 320.f, 1000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 5)},
-        {"Guardian",        20, 0.22f, 310.f, 1250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 6)},
-        {"Tactical Ship",   27, 0.35f, 270.f, 1500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 7)},
-        {"Interceptor",     20, 0.10f, 400.f, 1750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 8)},
-        {"Battle Frigate",  35, 0.60f, 230.f, 2000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 9)},
-        {"Dreadnought",     40, 0.50f, 200.f, 2250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 10)}
+        {"Default Fighter",  20, 0.3f, 220.f, 0, true},
+        {"Swift Scout",     20, 0.3f, 330.f, 250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 2)},
+        {"Heavy Cruiser",   40, 0.40f, 300.f, 500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 3)},
+        {"Stealth Ship",    35, 0.26f, 330.f, 750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 4)},
+        {"Assault Ship",    30, 0.20f, 320.f, 1000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 5)},
+        {"Guardian",        50, 0.22f, 340.f, 1250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 6)},
+        {"Tactical Ship",   40, 0.3f, 350.f, 1500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 7)},
+        {"Interceptor",     30, 0.10f, 400.f, 1750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 8)},
+        {"Battle Frigate",  50, 0.35f, 250.f, 2000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 9)},
+        {"Dreadnought",     60, 0.40f, 280.f, 2250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 10)}
     };
 
     RectangleShape rightPanel(Vector2f(400, window.getSize().y - 100));
@@ -1249,8 +1251,8 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
                     if (!alreadyOwned && canAfford) {
                         userManager.addUserCoins(-shipsStats[skinIndex].price);
                         userManager.addPurchasedSkin(userManager.getCurrentUser(), skinIndex + 1);
+                        purchaseSound.play(); 
                         shipsStats[skinIndex].owned = true;
-
                         coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
                         updateShipInfo(selectedShipSkin);
                         saveSelectedSkin();
@@ -1734,9 +1736,9 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
             bulletDamageModifier = 1;
             break;
         }
-        if (!shootBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\vistrel.wav") ||
-            !asteroidDestroyBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\bangLarge.wav") ||
-            !explosionSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.wav")) {
+        if (!shootBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\vistrel.mp3") ||
+            !asteroidDestroyBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\bangLarge.mp3") ||
+            !explosionSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.mp3")) {
             cerr << "Error: sound files not found" << endl;
         }
         shootSound.setBuffer(shootBuffer);
@@ -1849,7 +1851,7 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
             }
 
             if (bonusSpawnClock.getElapsedTime().asSeconds() >= 15.0f) {
-                if (rand() % 100 < 20) {
+                if (rand() % 100 < 50) {
                     Bonus::BonusType bonusType = static_cast<Bonus::BonusType>(rand() % 6);
                     bonuses.push_back(Bonus(
                         rand() % (window.getSize().x - 100) + 50, -50,
@@ -2002,7 +2004,7 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                                 20
                             );
 
-                            if (rand() % 100 < 20) {
+                            if (rand() % 100 < 50) {
                                 Bonus::BonusType bonusType = static_cast<Bonus::BonusType>(rand() % 6);
                                 bonuses.push_back(Bonus(asteroids[j].getCenter().x,
                                     asteroids[j].getCenter().y,
@@ -2224,6 +2226,7 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
     Text modeText("[TAB] Switch mode", font, 25);
     Text actionText("Press ENTER to Login", font, 30);
     Text errorText("", font, 25);
+    Text titleText("WW REGISTRATION", font, 50); 
 
     RectangleShape loginField(Vector2f(300, 40)), passwordField(Vector2f(300, 40)), nicknameField(Vector2f(300, 40));
     loginField.setFillColor(Color(70, 70, 70, 200));
@@ -2234,25 +2237,27 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
     nicknameField.setOutlineThickness(2);
 
     float centerX = window.getSize().x / 2 - 200;
-    float fieldX = centerX + 120;
+    float fieldX = window.getSize().x / 2 - 150;
 
-    loginLabel.setPosition(centerX, 200);
+    titleText.setFillColor(Color::White);
+    titleText.setStyle(Text::Bold);
+    titleText.setPosition(window.getSize().x / 2 - titleText.getGlobalBounds().width / 2, window.getSize().y / 4 - 50);
 
-    passwordLabel.setPosition(centerX - 70, 260);
+    loginLabel.setPosition(fieldX - 110, window.getSize().y / 2 - 80);
+    loginText.setPosition(fieldX, window.getSize().y / 2 - 80);
+    loginField.setPosition(fieldX, window.getSize().y / 2 - 85);
 
-    nicknameLabel.setPosition(centerX - 70, 320);
-    loginText.setPosition(fieldX + 20, 200);
+    passwordLabel.setPosition(fieldX - 110, window.getSize().y / 2 - 20);
+    passwordText.setPosition(fieldX, window.getSize().y / 2 - 20);
+    passwordField.setPosition(fieldX, window.getSize().y / 2 - 25);
 
-    passwordText.setPosition(fieldX + 20, 260); //ввод текста
+    nicknameLabel.setPosition(fieldX - 110, window.getSize().y / 2 + 40);
+    nicknameText.setPosition(fieldX, window.getSize().y / 2 + 40);
+    nicknameField.setPosition(fieldX, window.getSize().y / 2 + 35);
 
-    nicknameText.setPosition(fieldX + 20, 320);
-    loginField.setPosition(fieldX + 20, 195);
-    passwordField.setPosition(fieldX + 20, 255);
-    nicknameField.setPosition(fieldX + 20, 315);
-
-    modeText.setPosition(centerX, 400);
-    actionText.setPosition(centerX, 450);
-    errorText.setPosition(centerX, 500);
+    modeText.setPosition(window.getSize().x / 2 - modeText.getGlobalBounds().width / 2, window.getSize().y / 2 + 100);
+    actionText.setPosition(window.getSize().x / 2 - actionText.getGlobalBounds().width / 2, window.getSize().y / 2 + 130);
+    errorText.setPosition(window.getSize().x / 2 - errorText.getGlobalBounds().width / 2, window.getSize().y / 2 + 160);
 
     loginLabel.setFillColor(Color::Yellow);
     loginField.setOutlineColor(Color::Yellow);
@@ -2286,6 +2291,7 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
                         "Press ENTER to Register" : "Press ENTER to Login");
                     actionText.setFillColor(currentMode == AuthMode::Register ? Color::Cyan : Color::Green);
                     errorText.setString("");
+                    titleText.setString(currentMode == AuthMode::Register ? "WW REGISTRATION" : "WW LOGIN");
 
                     if (currentMode == AuthMode::Register) {
                         nicknameLabel.setFillColor(activeField == ActiveField::Nickname ? Color::Yellow : Color::White);
@@ -2432,6 +2438,7 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
 
         window.clear();
         window.draw(bg);
+        window.draw(titleText); 
         window.draw(loginField);
         window.draw(passwordField);
         window.draw(loginLabel);
@@ -2466,6 +2473,7 @@ int main() {
         !shipTexture6.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship6.png") ||
         !shipTexture7.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship7.png") ||
         !shipTexture8.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship8.png") ||
+        !purchaseSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\mus_create.mp3") ||
         !shipTexture9.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship9.png") ||
         !shipTexture10.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship10.png") ||
         !shopMusic.openFromFile(musicFiles[currentMusicIndex]) ||
@@ -2481,12 +2489,12 @@ int main() {
         !fireRateBuffTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\shotspeed.png") ||
         !doubleShotBuffTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\double_shot.png") ||
         !explosionPointTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\explosion.png") ||
-        !asteroidDestroyBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.wav") ||
+        !asteroidDestroyBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.mp3") ||
         !bulletTexture2.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\bullet2.png") ||
         !healthPackTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\medic_bag.png") ||
-        !explosionSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.wav") ||
+        !explosionSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.mp3") ||
         !shieldBuffTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\shield.png") ||
-        !shootBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\vistrel.wav")) {
+        !shootBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\vistrel.mp3")) {
         cerr << "Error loading textures or sounds!" << endl;
         return -1;
     }
@@ -2494,7 +2502,8 @@ int main() {
     loadSettings();
 
     loadSelectedSkin();
-
+    purchaseSound.setBuffer(purchaseSoundBuffer);
+    purchaseSound.setVolume(soundVolume);
     VideoMode desktop = VideoMode::getDesktopMode();
     RenderWindow window(desktop, "Asteroids", Style::Fullscreen);
 
@@ -2539,14 +2548,6 @@ int main() {
     userText.setFillColor(Color::White);
     userText.setPosition(20, window.getSize().y - 50);
 
-    Text highScoreText("Best (Infinite): " + to_string(userManager.getUserInfiniteModeHighScore()) +
-        "\nBest (Time): " + to_string(userManager.getUserTimeModeHighScore()), font, 20);
-    highScoreText.setFillColor(Color::Yellow);
-    highScoreText.setPosition(20, userText.getPosition().y - 50);
-
-    Text coinsText("Coins: " + to_string(userManager.getUserCoins()), font, 20);
-    coinsText.setFillColor(Color::Yellow);
-    coinsText.setPosition(20, highScoreText.getPosition().y - 20);
 
 
     vector<RectangleShape> menuButtons;
@@ -2593,6 +2594,8 @@ int main() {
     while (window.isOpen()) {
         Event e;
         while (window.pollEvent(e)) {
+            userManager.loadUserScores();
+            userManager.loadUserCoins();
             if (e.type == Event::Closed) window.close();
             if (e.type == Event::MouseButtonPressed && e.mouseButton.button == Mouse::Left) {
                 for (size_t i = 0; i < menuButtons.size(); ++i) {
@@ -2619,9 +2622,6 @@ int main() {
             }
         }
 
-        highScoreText.setString("Best (Infinite): " + to_string(userManager.getUserInfiniteModeHighScore()) +
-            "\nBest (Time): " + to_string(userManager.getUserTimeModeHighScore()));
-        coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
         window.clear();
         window.draw(menuBg);
 
@@ -2634,8 +2634,6 @@ int main() {
         }
 
         window.draw(userText);
-        window.draw(coinsText);
-        window.draw(highScoreText);
         window.display();
     }
 
