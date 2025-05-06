@@ -1,2 +1,2 @@
-Typ3r 5350 time
-Typ3r 700 infinite
+Typ3r 54700 infinite
+Typ3r 17050 time

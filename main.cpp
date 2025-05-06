@@ -35,7 +35,6 @@ vector<string> musicFiles = {
 vector<string> musicNames = { "BACKR00MS", "GOOD CREDIT", "Evolution", "Honey Bunn", "Bronny James","Im in my zone" };
 int currentMusicIndex = 0;
 
-
 float soundVolume = 20.0f;
 float musicVolume = 20.0f;
 const string SETTINGS_FILE = "C:\\Users\\User\\Desktop\\SFML\\Users\\settings.txt";
@@ -536,7 +535,7 @@ void showLeaderboard(RenderWindow& window, Font& font) {
     modeButton.setOutlineColor(Color::White);
     modeButton.setPosition(window.getSize().x / 2 - 200, 600);
 
-    Text modeButtonText("Show Time Attack Mode", font, 30);
+    Text modeButtonText("Show Time Mode", font, 30);
     modeButtonText.setFillColor(Color::White);
     modeButtonText.setPosition(
         modeButton.getPosition().x + (modeButton.getSize().x - modeButtonText.getGlobalBounds().width) / 2,
@@ -589,7 +588,7 @@ void showLeaderboard(RenderWindow& window, Font& font) {
                 Vector2f mousePos = window.mapPixelToCoords(Mouse::getPosition(window));
                 if (modeButton.getGlobalBounds().contains(mousePos)) {
                     showTimeMode = !showTimeMode;
-                    modeButtonText.setString(showTimeMode ? "Show Infinite Mode" : "Show Time Attack Mode");
+                    modeButtonText.setString(showTimeMode ? "Show Infinite Mode" : "Show Time Mode");
                 }
                 else if (backButton.getGlobalBounds().contains(mousePos)) {
                     return;
@@ -623,7 +622,7 @@ void showLeaderboard(RenderWindow& window, Font& font) {
         window.draw(title);
 
 
-        Text modeTitle(showTimeMode ? "TIME ATTACK MODE" : "INFINITE MODE", font, 40);
+        Text modeTitle(showTimeMode ? "TIME MODE" : "INFINITE MODE", font, 40);
         modeTitle.setFillColor(showTimeMode ? Color::Cyan : Color::Green);
         modeTitle.setPosition(window.getSize().x / 2 - modeTitle.getGlobalBounds().width / 2, 120);
         window.draw(modeTitle);
@@ -1045,14 +1044,14 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
 
     vector<ShipStats> shipsStats = {
         {"Default Fighter",  20, 0.3f, 220.f, 0, true},
-        {"Swift Scout",     20, 0.3f, 330.f, 250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 2)},
-        {"Heavy Cruiser",   40, 0.40f, 300.f, 500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 3)},
-        {"Stealth Ship",    35, 0.26f, 330.f, 750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 4)},
+        {"Swift Scout",     20, 0.25f, 350.f, 250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 2)},
+        {"Heavy Cruiser",   40, 0.30f, 250.f, 500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 3)},
+        {"Stealth Ship",    25, 0.25f, 290.f, 750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 4)},
         {"Assault Ship",    30, 0.20f, 320.f, 1000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 5)},
-        {"Guardian",        50, 0.22f, 340.f, 1250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 6)},
-        {"Tactical Ship",   40, 0.3f, 350.f, 1500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 7)},
-        {"Interceptor",     30, 0.10f, 400.f, 1750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 8)},
-        {"Battle Frigate",  50, 0.35f, 250.f, 2000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 9)},
+        {"Guardian",        50, 0.3f, 330.f, 1250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 6)},
+        {"Tactical Ship",   20, 0.15f, 470.f, 1500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 7)},
+        {"Interceptor",     30, 0.20f, 400.f, 1750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 8)},
+        {"Battle Frigate",  50, 0.35f, 270.f, 2000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 9)},
         {"Dreadnought",     60, 0.40f, 280.f, 2250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 10)}
     };
 
@@ -1080,7 +1079,7 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
     FloatRect buyTextRect = buyButtonText.getLocalBounds();
     buyButtonText.setOrigin(buyTextRect.left + buyTextRect.width / 2.0f,
         buyTextRect.top + buyTextRect.height / 2.0f);
-    buyButtonText.setPosition(buyButton.getPosition().x + buyButton.getSize().x / 2,
+    buyButtonText.setPosition(buyButton.getPosition().x + buyButton.getSize().x / 2 - 15,
         buyButton.getPosition().y + buyButton.getSize().y / 2);
 
     Text priceText("", font, 25);
@@ -1172,6 +1171,8 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
             switch (shipIndex) {
             case 1: description = "Fast but lightly armed\nscout ship."; break;
             case 2: description = "Heavily armed but slow\ncruiser."; break;
+            case 3: description = "Have a nice shot speed and speed."; break;
+            case 4: description = "Have a less damage then Stealth ship\nbut have a more shot speed"; break;
             }
             shipDescription.setString(description);
 
@@ -1410,7 +1411,7 @@ void showGameModeSelection(RenderWindow& window, Font& font, bool& infiniteMode,
         window.getSize().y / 2 + 30
     );
 
-    Text timeModeText("Time Attack Mode", font, 40);
+    Text timeModeText("Time Mode", font, 40);
     textRect = timeModeText.getLocalBounds();
     timeModeText.setOrigin(textRect.left + textRect.width / 2.0f,
         textRect.top + textRect.height / 2.0f);
@@ -1683,56 +1684,56 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
         float baseShootCooldown = 0.25f;
         int bulletDamageModifier = 1;
         switch (selectedShipSkin) {
-        case 1: // defoult ship
+        case 1: // default ship
             break;
         case 2: // Swift Scout
             moveSpeed = 350.f;
-            baseShootCooldown = 0.15f;
+            baseShootCooldown = 0.25f;
             bulletDamageModifier = 1;
             break;
         case 3: // Heavy Cruiser
             moveSpeed = 250.f;
-            baseShootCooldown = 0.40f;
-            bulletDamageModifier = 1.5f;
+            baseShootCooldown = 0.3f;
+            bulletDamageModifier = 2;
             break;
         case 4: // Stealth Ship
-            moveSpeed = 280.f;
-            baseShootCooldown = 0.30f;
+            moveSpeed = 290.f;
+            baseShootCooldown = 0.25f;
             bulletDamageModifier = 1.25f;
             break;
         case 5: // Assault Ship
             moveSpeed = 320.f;
             baseShootCooldown = 0.20f;
-            bulletDamageModifier = 1.1f;
+            bulletDamageModifier = 1.5;
             break;
         case 6: // Guardian
-            moveSpeed = 310.f;
-            baseShootCooldown = 0.22f;
-            bulletDamageModifier = 1.1f;
+            moveSpeed = 330.f;
+            baseShootCooldown = 0.3f;
+            bulletDamageModifier = 2.5f;
             break;
         case 7: // Tactical Ship
-            moveSpeed = 270.f;
-            baseShootCooldown = 0.35f;
-            bulletDamageModifier = 1.35f;
+            moveSpeed = 470.f;
+            baseShootCooldown = 0.15;
+            bulletDamageModifier = 1;
             break;
         case 8: // Interceptor
             moveSpeed = 400.f;
             baseShootCooldown = 0.2f;
-            bulletDamageModifier = 1;
+            bulletDamageModifier = 1.5;
             break;
         case 9: // Battle Frigate
-            moveSpeed = 230.f;
-            baseShootCooldown = 0.50f;
-            bulletDamageModifier = 1.75f;
+            moveSpeed = 270.f;
+            baseShootCooldown = 0.35f;
+            bulletDamageModifier = 2.5f;
             break;
         case 10: // Dreadnought
-            moveSpeed = 200.f;
-            baseShootCooldown = 0.60f;
-            bulletDamageModifier = 2;
+            moveSpeed = 280.f;
+            baseShootCooldown = 0.40f;
+            bulletDamageModifier = 3;
             break;
         default:
-            moveSpeed = 300.f;
-            baseShootCooldown = 0.25f;
+            moveSpeed = 220.f;
+            baseShootCooldown = 0.3f;
             bulletDamageModifier = 1;
             break;
         }
@@ -2053,8 +2054,6 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                 }
             }
 
-
-
             if (shieldActive) {
                 float shieldRadius = ship.getTexture()->getSize().x / 2.0f * 0.6;
                 CircleShape shield(shieldRadius);
@@ -2257,7 +2256,7 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
 
     modeText.setPosition(window.getSize().x / 2 - modeText.getGlobalBounds().width / 2, window.getSize().y / 2 + 100);
     actionText.setPosition(window.getSize().x / 2 - actionText.getGlobalBounds().width / 2, window.getSize().y / 2 + 130);
-    errorText.setPosition(window.getSize().x / 2 - errorText.getGlobalBounds().width / 2, window.getSize().y / 2 + 160);
+    errorText.setPosition(window.getSize().x / 2 - errorText.getGlobalBounds().width / 2 - 90, window.getSize().y / 2 + 160);
 
     loginLabel.setFillColor(Color::Yellow);
     loginField.setOutlineColor(Color::Yellow);
@@ -2531,7 +2530,6 @@ int main() {
     asteroidDestroySound.setBuffer(asteroidDestroyBuffer);
     explosionSound.setBuffer(explosionSoundBuffer);
 
-
     shootSound.setVolume(soundVolume);
     asteroidDestroySound.setVolume(soundVolume);
     explosionSound.setVolume(soundVolume);
@@ -2547,8 +2545,6 @@ int main() {
     Text userText("User: " + userManager.getCurrentNickname(), font, 20);
     userText.setFillColor(Color::White);
     userText.setPosition(20, window.getSize().y - 50);
-
-
 
     vector<RectangleShape> menuButtons;
     vector<Text> menuButtonTexts;
@@ -2621,7 +2617,6 @@ int main() {
                 menuButtonTexts[i].setFillColor(Color::White);
             }
         }
-
         window.clear();
         window.draw(menuBg);
 
@@ -2636,6 +2631,5 @@ int main() {
         window.draw(userText);
         window.display();
     }
-
     return 0;
 }
