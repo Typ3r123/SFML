@@ -1,4 +1,2 @@
-Typ3r 31400 infinite
-abobus 10700 infinite
-Typ3r 8050 time
-abobus 5600 time
+Typ3r 5350 time
+Typ3r 700 infinite

@@ -3,6 +3,7 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 #include <map>
 
 using namespace sf;
@@ -14,6 +15,8 @@ Texture shipTexture1, shipTexture2, shipTexture3, shipTexture4, shipTexture5, sh
 Texture settingsBackgroundTexture, leaderboardBackgroundTexture, authBackgroundTexture, shopbackgroundTexture, lockTexture;
 Texture damageBuffTexture, fireRateBuffTexture, healthPackTexture, doubleShotBuffTexture, explosionPointTexture, shieldBuffTexture;
 Music shopMusic;
+SoundBuffer purchaseSoundBuffer;
+Sound purchaseSound;
 SoundBuffer errorSoundBuffer;
 Sound errorSound;
 float currentSpeedMultiplier = 1.0;
@@ -79,10 +82,12 @@ private:
     map<string, pair<string, string>> users;
     map<string, int> highScores;
     map<string, int> userCoins;
-    map<string, vector<int>> purchasedSkins; 
+    map<string, vector<int>> purchasedSkins;
     const string PURCHASED_SKINS_FILE = "C:\\Users\\User\\Desktop\\SFML\\Users\\purchased_skins.txt";
     const string USERS_FILE = "C:\\Users\\User\\Desktop\\SFML\\Users\\users.txt";
     const string SCORES_FILE = "C:\\Users\\User\\Desktop\\SFML\\Users\\user_scores.txt";
+    int infiniteModeHighScore = 0;
+    int timeModeHighScore = 0;
     string currentUser;
 
 public:
@@ -92,7 +97,10 @@ public:
             savePurchasedSkins();
         }
     }
-
+    int getUserInfiniteModeHighScore() const {
+        if (!isLoggedIn()) return 0;
+        return infiniteModeHighScore;
+    }
     bool hasPurchasedSkin(const string& login, int skinIndex) {
         auto it = purchasedSkins.find(login);
         if (it != purchasedSkins.end()) {
@@ -201,9 +209,12 @@ public:
             while (getline(file, line)) {
                 istringstream iss(line);
                 string username;
-                int score;
-                if (iss >> username >> score) {
-                    highScores[username] = score;
+                int infiniteScore, timeScore;
+                if (iss >> username >> infiniteScore >> timeScore) {
+                    if (username == currentUser) {
+                        infiniteModeHighScore = infiniteScore;
+                        timeModeHighScore = timeScore;
+                    }
                 }
             }
             file.close();
@@ -213,9 +224,7 @@ public:
     void saveUserScores() {
         ofstream file(SCORES_FILE);
         if (file.is_open()) {
-            for (const auto& entry : highScores) {
-                file << entry.first << " " << entry.second << "\n";
-            }
+            file << currentUser << " " << infiniteModeHighScore << " " << timeModeHighScore << "\n";
             file.close();
         }
     }
@@ -262,14 +271,27 @@ public:
         auto it = highScores.find(currentUser);
         return (it != highScores.end()) ? it->second : 0;
     }
-
-    void updateUserHighScore(int score) {
+    int getUserTimeModeHighScore() const {
+        if (!isLoggedIn()) return 0;
+        return timeModeHighScore;
+    }
+    void updateUserHighScore(int score, bool isTimeMode) {
         if (!isLoggedIn()) return;
 
-        int currentHigh = getUserHighScore();
-        if (score > currentHigh) {
-            highScores[currentUser] = score;
-            saveUserScores();
+        if (isTimeMode) {
+            cout << "Current time mode high: " << timeModeHighScore
+                << ", new score: " << score << endl;
+
+            if (score > timeModeHighScore) {
+                timeModeHighScore = score;
+                saveUserScores();
+            }
+        }
+        else {
+            if (score > infiniteModeHighScore) {
+                infiniteModeHighScore = score;
+                saveUserScores();
+            }
         }
     }
 };
@@ -308,17 +330,17 @@ public:
         switch (type) {
         case 0:
             sprite.setTexture(asteroidGreenTexture);
-            health = 50;
+            health = 80;
             speed = 185.f;
             break;
         case 1:
             sprite.setTexture(asteroidBlueTexture);
-            health = 80;
+            health = 120;
             speed = 135.f;
             break;
         case 2:
             sprite.setTexture(asteroidRedTexture);
-            health = 100;
+            health = 160;
             speed = 100.f;
             break;
         }
@@ -353,9 +375,9 @@ public:
     }
 
     int calculateCoins() const {
-        if (sprite.getTexture() == &asteroidGreenTexture) return 1;   
-        if (sprite.getTexture() == &asteroidBlueTexture) return 2;    
-        if (sprite.getTexture() == &asteroidRedTexture) return 3;     
+        if (sprite.getTexture() == &asteroidGreenTexture) return 1;
+        if (sprite.getTexture() == &asteroidBlueTexture) return 2;
+        if (sprite.getTexture() == &asteroidRedTexture) return 3;
         return 0;
     }
     Sprite sprite;
@@ -617,7 +639,7 @@ void showLeaderboard(RenderWindow& window, Font& font) {
 }
 
 bool showGameOverWithName(RenderWindow& window, Font& font, UserManager& userManager, int score, bool isTimeMode) {
-    userManager.updateUserHighScore(score);
+    userManager.updateUserHighScore(score, isTimeMode);
     userManager.saveUserCoins();
     updateGlobalHighscores(userManager, score, isTimeMode);
 
@@ -632,12 +654,18 @@ bool showGameOverWithName(RenderWindow& window, Font& font, UserManager& userMan
         window.getSize().y / 2 - 150);
 
 
-    int highScore = userManager.getUserHighScore();
-    Text highScoreText("Your best: " + to_string(highScore), font, 30);
+    int highScore = isTimeMode ? userManager.getUserTimeModeHighScore() : userManager.getUserHighScore();
+    Text highScoreText("Best (Infinite): " + to_string(userManager.getUserInfiniteModeHighScore()) +
+        "\nBest (Time): " + to_string(userManager.getUserTimeModeHighScore()), font, 50);
     highScoreText.setFillColor(Color::Yellow);
     highScoreText.setPosition(window.getSize().x / 2 - highScoreText.getGlobalBounds().width / 2,
-        window.getSize().y / 2 + 20);
+        gameOver.getPosition().y + gameOver.getGlobalBounds().height + 30);
 
+
+    Text coinsText("Coins: " + to_string(userManager.getUserCoins()), font, 20);
+    coinsText.setFillColor(Color::Yellow);
+    coinsText.setPosition(20, window.getSize().y + 200);
+    coinsText.setPosition(20, window.getSize().x + 200);
     Text options("Press R to Retry or M for Menu", font, 30);
     options.setFillColor(Color::White);
     options.setPosition(window.getSize().x / 2 - options.getGlobalBounds().width / 2,
@@ -866,7 +894,7 @@ void showSettings(RenderWindow& window, Font& font, Music& music, Sound& shootSo
                     vol = clamp(vol, 0, 100);
                     musicVolume = vol;
                     music.setVolume(musicVolume);
-                    shopMusic.setVolume(musicVolume); 
+                    shopMusic.setVolume(musicVolume);
                     musicHandle.setPosition(musicSliderBg.getPosition().x + musicVolume / 100.f * musicSliderBg.getSize().x, 190);
                 }
 
@@ -1016,16 +1044,16 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
     };
 
     vector<ShipStats> shipsStats = {
-        {"Default Fighter",  20, 0.25f, 300.f, 0, true},
-        {"Swift Scout",     20, 0.15f, 350.f, 250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 2)},
-        {"Heavy Cruiser",   30, 0.40f, 300.f, 500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 3)},
-        {"Stealth Ship",    25, 0.30f, 280.f, 750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 4)},
-        {"Assault Ship",    22, 0.20f, 320.f, 1000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 5)},
-        {"Guardian",        20, 0.22f, 310.f, 1250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 6)},
-        {"Tactical Ship",   27, 0.35f, 270.f, 1500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 7)},
-        {"Interceptor",     20, 0.10f, 400.f, 1750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 8)},
-        {"Battle Frigate",  35, 0.60f, 230.f, 2000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 9)},
-        {"Dreadnought",     40, 0.50f, 200.f, 2250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 10)}
+        {"Default Fighter",  20, 0.3f, 220.f, 0, true},
+        {"Swift Scout",     20, 0.3f, 330.f, 250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 2)},
+        {"Heavy Cruiser",   40, 0.40f, 300.f, 500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 3)},
+        {"Stealth Ship",    35, 0.26f, 330.f, 750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 4)},
+        {"Assault Ship",    30, 0.20f, 320.f, 1000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 5)},
+        {"Guardian",        50, 0.22f, 340.f, 1250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 6)},
+        {"Tactical Ship",   40, 0.3f, 350.f, 1500, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 7)},
+        {"Interceptor",     30, 0.10f, 400.f, 1750, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 8)},
+        {"Battle Frigate",  50, 0.35f, 250.f, 2000, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 9)},
+        {"Dreadnought",     60, 0.40f, 280.f, 2250, userManager.hasPurchasedSkin(userManager.getCurrentUser(), 10)}
     };
 
     RectangleShape rightPanel(Vector2f(400, window.getSize().y - 100));
@@ -1134,7 +1162,10 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
         if (shipIndex >= 0 && shipIndex < 10) {
             shipName.setString(shipsStats[shipIndex].name);
             shipDamage.setString("Damage: " + to_string(shipsStats[shipIndex].damage));
-            shipFireRate.setString("Fire Rate: " + to_string(shipsStats[shipIndex].fireRate) + " sec");
+            ostringstream stream;
+            stream << std::fixed << setprecision(2);
+            stream << "Fire Rate: " << shipsStats[shipIndex].fireRate << " sec";
+            shipFireRate.setString(stream.str());
             shipSpeed.setString("Speed: " + to_string((int)shipsStats[shipIndex].speed) + " units");
 
             string description = "A well-balanced ship with\ngood overall performance.";
@@ -1157,13 +1188,13 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
                 buyButtonText.setString("BUY");
                 priceText.setString(to_string(shipsStats[shipIndex].price) + " coins");
                 buyButton.setFillColor(Color(70, 70, 70, 200));
-                buyButton.setOutlineColor(Color::Yellow); 
+                buyButton.setOutlineColor(Color::Yellow);
             }
             else {
                 buyButtonText.setString("BUY");
                 priceText.setString(to_string(shipsStats[shipIndex].price) + " coins");
                 buyButton.setFillColor(Color(30, 30, 30, 200));
-                buyButton.setOutlineColor(Color::Transparent); 
+                buyButton.setOutlineColor(Color::Transparent);
             }
 
             priceText.setPosition(buyButton.getPosition().x + (buyButton.getSize().x - priceText.getGlobalBounds().width) / 2,
@@ -1220,13 +1251,13 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
                     if (!alreadyOwned && canAfford) {
                         userManager.addUserCoins(-shipsStats[skinIndex].price);
                         userManager.addPurchasedSkin(userManager.getCurrentUser(), skinIndex + 1);
+                        purchaseSound.play(); 
                         shipsStats[skinIndex].owned = true;
-
                         coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
                         updateShipInfo(selectedShipSkin);
                         saveSelectedSkin();
 
-                        
+
                         for (int i = 0; i < 10; i++) {
                             skinBgs[i].setOutlineColor(selectedShipSkin == i + 1 ? Color::Yellow : Color::White);
                             skinTexts[i].setFillColor(selectedShipSkin == i + 1 ? Color::Yellow : Color::White);
@@ -1263,7 +1294,7 @@ void showSkinSelection(RenderWindow& window, Font& font, Music& backgroundMusic,
 
         if (buyButton.getGlobalBounds().contains(mousePos) && !alreadyOwned) {
             if (canAfford) {
-                buyButton.setFillColor(Color(100, 100, 100, 200)); 
+                buyButton.setFillColor(Color(100, 100, 100, 200));
                 buyButton.setOutlineColor(Color::Yellow);
                 buyButtonText.setFillColor(Color::Yellow);
             }
@@ -1667,47 +1698,47 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
         case 4: // Stealth Ship
             moveSpeed = 280.f;
             baseShootCooldown = 0.30f;
-            bulletDamageModifier = 1.25f; 
+            bulletDamageModifier = 1.25f;
             break;
         case 5: // Assault Ship
             moveSpeed = 320.f;
             baseShootCooldown = 0.20f;
-            bulletDamageModifier = 1.1f; 
+            bulletDamageModifier = 1.1f;
             break;
         case 6: // Guardian
             moveSpeed = 310.f;
             baseShootCooldown = 0.22f;
-            bulletDamageModifier = 1.1f; 
+            bulletDamageModifier = 1.1f;
             break;
         case 7: // Tactical Ship
             moveSpeed = 270.f;
             baseShootCooldown = 0.35f;
-            bulletDamageModifier = 1.35f; 
+            bulletDamageModifier = 1.35f;
             break;
         case 8: // Interceptor
             moveSpeed = 400.f;
             baseShootCooldown = 0.2f;
-            bulletDamageModifier = 1; 
+            bulletDamageModifier = 1;
             break;
         case 9: // Battle Frigate
             moveSpeed = 230.f;
             baseShootCooldown = 0.50f;
-            bulletDamageModifier = 1.75f; 
+            bulletDamageModifier = 1.75f;
             break;
         case 10: // Dreadnought
             moveSpeed = 200.f;
             baseShootCooldown = 0.60f;
-            bulletDamageModifier = 2; 
+            bulletDamageModifier = 2;
             break;
-        default: 
+        default:
             moveSpeed = 300.f;
             baseShootCooldown = 0.25f;
             bulletDamageModifier = 1;
             break;
         }
-        if (!shootBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\vistrel.wav") ||
-            !asteroidDestroyBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\bangLarge.wav") ||
-            !explosionSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.wav")) {
+        if (!shootBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\vistrel.mp3") ||
+            !asteroidDestroyBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\bangLarge.mp3") ||
+            !explosionSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.mp3")) {
             cerr << "Error: sound files not found" << endl;
         }
         shootSound.setBuffer(shootBuffer);
@@ -1720,7 +1751,7 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
             window.getSize().y / float(backgroundTexture.getSize().y)
         );
 
-        
+
         bool isPaused = false;
         bool shouldExitToMenu = false;
         Clock shootClock, gameClock, asteroidClock, bonusSpawnClock;
@@ -1820,7 +1851,7 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
             }
 
             if (bonusSpawnClock.getElapsedTime().asSeconds() >= 15.0f) {
-                if (rand() % 100 < 20) {
+                if (rand() % 100 < 50) {
                     Bonus::BonusType bonusType = static_cast<Bonus::BonusType>(rand() % 6);
                     bonuses.push_back(Bonus(
                         rand() % (window.getSize().x - 100) + 50, -50,
@@ -1850,19 +1881,19 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
             if (Mouse::isButtonPressed(Mouse::Left) && shootClock.getElapsedTime().asSeconds() >= currentShootCooldown) {
                 const Texture& bulletTex = (damageMultiplier > 1.0f) ? bulletTexture2 : bulletTexture;
 
-                if(doubleShotActive) {
+                if (doubleShotActive) {
                     Bullet bullet1(ship.getPosition().x, ship.getPosition().y, angle + 15, bulletTex);
                     Bullet bullet2(ship.getPosition().x, ship.getPosition().y, angle - 15, bulletTex);
-                    
+
                     bullet1.damage = static_cast<int>(bullet1.damage * bulletDamageModifier * damageMultiplier);
                     bullet2.damage = static_cast<int>(bullet2.damage * bulletDamageModifier * damageMultiplier);
                     bullets.push_back(bullet1);
                     bullets.push_back(bullet2);
                 }
                 else {
-                Bullet newBullet(ship.getPosition().x, ship.getPosition().y, angle, bulletTex);
-                newBullet.damage = static_cast<int>(newBullet.damage * bulletDamageModifier * damageMultiplier);
-                bullets.push_back(newBullet);
+                    Bullet newBullet(ship.getPosition().x, ship.getPosition().y, angle, bulletTex);
+                    newBullet.damage = static_cast<int>(newBullet.damage * bulletDamageModifier * damageMultiplier);
+                    bullets.push_back(newBullet);
                 }
                 shootSound.play();
                 shootClock.restart();
@@ -1959,11 +1990,11 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                         bullets[i].sprite.getPosition(),
                         bullets[i].sprite.getTexture()->getSize().x / 2.0f * 0.4f,
                         asteroids[j].getCenter(),
-                        asteroids[j].getRadius())) {       
+                        asteroids[j].getRadius())) {
                         asteroids[j].takeDamage(bullets[i].damage);
                         if (asteroids[j].health <= 0) {
                             score += asteroids[j].calculateScore();
-                            userManager.addUserCoins(asteroids[j].calculateCoins()); 
+                            userManager.addUserCoins(asteroids[j].calculateCoins());
                             coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
 
                             asteroidDestroySound.play();
@@ -1973,7 +2004,7 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                                 20
                             );
 
-                            if (rand() % 100 < 20) {
+                            if (rand() % 100 < 50) {
                                 Bonus::BonusType bonusType = static_cast<Bonus::BonusType>(rand() % 6);
                                 bonuses.push_back(Bonus(asteroids[j].getCenter().x,
                                     asteroids[j].getCenter().y,
@@ -1997,8 +2028,8 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                     if (shieldActive) {
                         shieldHits++;
                         score += asteroids[j].calculateScore();
-                        userManager.addUserCoins(asteroids[j].calculateCoins()); 
-                        coinsText.setString("Coins: " + to_string(userManager.getUserCoins())); 
+                        userManager.addUserCoins(asteroids[j].calculateCoins());
+                        coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
                         asteroidDestroySound.play();
 
                         if (shieldHits >= 2) {
@@ -2043,8 +2074,8 @@ void gameLoop(RenderWindow& window, Font& font, UserManager& userManager) {
                             pow(asteroids[j].getCenter().y - explosionCenter.y, 2));
                         if (distance < explosionRadius) {
                             score += asteroids[j].calculateScore();
-                            userManager.addUserCoins(asteroids[j].calculateCoins()); 
-                            coinsText.setString("Coins: " + to_string(userManager.getUserCoins())); 
+                            userManager.addUserCoins(asteroids[j].calculateCoins());
+                            coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
                             asteroidDestroySound.play();
                             scoreText.setString(to_string(score));
                             scoreText.setPosition(
@@ -2195,6 +2226,7 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
     Text modeText("[TAB] Switch mode", font, 25);
     Text actionText("Press ENTER to Login", font, 30);
     Text errorText("", font, 25);
+    Text titleText("WW REGISTRATION", font, 50); 
 
     RectangleShape loginField(Vector2f(300, 40)), passwordField(Vector2f(300, 40)), nicknameField(Vector2f(300, 40));
     loginField.setFillColor(Color(70, 70, 70, 200));
@@ -2205,21 +2237,27 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
     nicknameField.setOutlineThickness(2);
 
     float centerX = window.getSize().x / 2 - 200;
-    float fieldX = centerX + 120;
+    float fieldX = window.getSize().x / 2 - 150;
 
-    loginLabel.setPosition(centerX, 200);
-    passwordLabel.setPosition(centerX, 260);
-    nicknameLabel.setPosition(centerX, 320);
-    loginText.setPosition(fieldX + 20, 200);
-    passwordText.setPosition(fieldX + 20, 260);
-    nicknameText.setPosition(fieldX + 20, 320);
-    loginField.setPosition(fieldX + 20, 195);
-    passwordField.setPosition(fieldX + 20, 255);
-    nicknameField.setPosition(fieldX + 20, 315);
+    titleText.setFillColor(Color::White);
+    titleText.setStyle(Text::Bold);
+    titleText.setPosition(window.getSize().x / 2 - titleText.getGlobalBounds().width / 2, window.getSize().y / 4 - 50);
 
-    modeText.setPosition(centerX, 400);
-    actionText.setPosition(centerX, 450);
-    errorText.setPosition(centerX, 500);
+    loginLabel.setPosition(fieldX - 110, window.getSize().y / 2 - 80);
+    loginText.setPosition(fieldX, window.getSize().y / 2 - 80);
+    loginField.setPosition(fieldX, window.getSize().y / 2 - 85);
+
+    passwordLabel.setPosition(fieldX - 110, window.getSize().y / 2 - 20);
+    passwordText.setPosition(fieldX, window.getSize().y / 2 - 20);
+    passwordField.setPosition(fieldX, window.getSize().y / 2 - 25);
+
+    nicknameLabel.setPosition(fieldX - 110, window.getSize().y / 2 + 40);
+    nicknameText.setPosition(fieldX, window.getSize().y / 2 + 40);
+    nicknameField.setPosition(fieldX, window.getSize().y / 2 + 35);
+
+    modeText.setPosition(window.getSize().x / 2 - modeText.getGlobalBounds().width / 2, window.getSize().y / 2 + 100);
+    actionText.setPosition(window.getSize().x / 2 - actionText.getGlobalBounds().width / 2, window.getSize().y / 2 + 130);
+    errorText.setPosition(window.getSize().x / 2 - errorText.getGlobalBounds().width / 2, window.getSize().y / 2 + 160);
 
     loginLabel.setFillColor(Color::Yellow);
     loginField.setOutlineColor(Color::Yellow);
@@ -2253,6 +2291,7 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
                         "Press ENTER to Register" : "Press ENTER to Login");
                     actionText.setFillColor(currentMode == AuthMode::Register ? Color::Cyan : Color::Green);
                     errorText.setString("");
+                    titleText.setString(currentMode == AuthMode::Register ? "WW REGISTRATION" : "WW LOGIN");
 
                     if (currentMode == AuthMode::Register) {
                         nicknameLabel.setFillColor(activeField == ActiveField::Nickname ? Color::Yellow : Color::White);
@@ -2399,6 +2438,7 @@ bool showAuthWindow(RenderWindow& window, Font& font, UserManager& userManager) 
 
         window.clear();
         window.draw(bg);
+        window.draw(titleText); 
         window.draw(loginField);
         window.draw(passwordField);
         window.draw(loginLabel);
@@ -2433,6 +2473,7 @@ int main() {
         !shipTexture6.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship6.png") ||
         !shipTexture7.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship7.png") ||
         !shipTexture8.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship8.png") ||
+        !purchaseSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\mus_create.mp3") ||
         !shipTexture9.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship9.png") ||
         !shipTexture10.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\spaceship10.png") ||
         !shopMusic.openFromFile(musicFiles[currentMusicIndex]) ||
@@ -2448,12 +2489,12 @@ int main() {
         !fireRateBuffTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\shotspeed.png") ||
         !doubleShotBuffTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\double_shot.png") ||
         !explosionPointTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\explosion.png") ||
-        !asteroidDestroyBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.wav") ||
+        !asteroidDestroyBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.mp3") ||
         !bulletTexture2.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Skins\\bullet2.png") ||
         !healthPackTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\medic_bag.png") ||
-        !explosionSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.wav") ||
+        !explosionSoundBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\explosion_sound.mp3") ||
         !shieldBuffTexture.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Buffs\\shield.png") ||
-        !shootBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\vistrel.wav")) {
+        !shootBuffer.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Sounds\\vistrel.mp3")) {
         cerr << "Error loading textures or sounds!" << endl;
         return -1;
     }
@@ -2461,12 +2502,13 @@ int main() {
     loadSettings();
 
     loadSelectedSkin();
-
+    purchaseSound.setBuffer(purchaseSoundBuffer);
+    purchaseSound.setVolume(soundVolume);
     VideoMode desktop = VideoMode::getDesktopMode();
     RenderWindow window(desktop, "Asteroids", Style::Fullscreen);
 
     Font font;
-    if (!font.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Fonts\\spacelight.ttf")) {
+    if (!font.loadFromFile("C:\\Users\\User\\Desktop\\SFML\\Fonts\\RuneScape-ENA.ttf")) {
         cerr << "Error: font file not found." << endl;
         return -1;
     }
@@ -2504,15 +2546,8 @@ int main() {
 
     Text userText("User: " + userManager.getCurrentNickname(), font, 20);
     userText.setFillColor(Color::White);
-    userText.setPosition(20, window.getSize().y - 40);
+    userText.setPosition(20, window.getSize().y - 50);
 
-    Text highScoreText("Best score: " + to_string(userManager.getUserHighScore()), font, 20);
-    highScoreText.setFillColor(Color::Yellow);
-    highScoreText.setPosition(20, window.getSize().y - 70);
-
-    Text coinsText("Coins: " + to_string(userManager.getUserCoins()), font, 20);
-    coinsText.setFillColor(Color::Yellow);
-    coinsText.setPosition(20, window.getSize().y - 100);
 
 
     vector<RectangleShape> menuButtons;
@@ -2559,6 +2594,8 @@ int main() {
     while (window.isOpen()) {
         Event e;
         while (window.pollEvent(e)) {
+            userManager.loadUserScores();
+            userManager.loadUserCoins();
             if (e.type == Event::Closed) window.close();
             if (e.type == Event::MouseButtonPressed && e.mouseButton.button == Mouse::Left) {
                 for (size_t i = 0; i < menuButtons.size(); ++i) {
@@ -2585,8 +2622,6 @@ int main() {
             }
         }
 
-        highScoreText.setString("Best score: " + to_string(userManager.getUserHighScore()));
-        coinsText.setString("Coins: " + to_string(userManager.getUserCoins()));
         window.clear();
         window.draw(menuBg);
 
@@ -2599,8 +2634,6 @@ int main() {
         }
 
         window.draw(userText);
-        window.draw(coinsText);
-        window.draw(highScoreText);
         window.display();
     }
 
